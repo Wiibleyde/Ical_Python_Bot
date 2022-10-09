@@ -11,11 +11,12 @@ CalUrl=""
 BotToken=""
 Timezone="Europe/Paris"
 AdminId=""
+
 client = discord.Client()
 
 @client.event
 async def on_ready():
-    print("We have logged in as {0.user}".format(client))
+    stderr("We have logged in as {0.user}".format(client))
 
 @client.event
 async def on_message(message):
@@ -43,15 +44,17 @@ async def my_background_task():
     count=0
     while not client.is_closed():
         if count == 30:
+            delete_ical()
             download_ical()
             count=0
         else:
             count=count+1
-            print("Waiting " + str(30-count) + " minutes")
+            stderr("Waiting " + str(30-count) + " minutes")
         cal=parse_ical()
         event=getNextEvent(cal)
         timeleft=CalcTimeLeft(event)
-        print("Reload status")
+        stderr("Next event in : " + str(timeleft) + " : " + event.get('summary') + " : " + getEventDate(event).strftime("%d/%m/%Y %H:%M:%S"))
+        stderr("Reload status")
         if isMoreThanDay(timeleft):
             await client.change_presence(activity=discord.Game(name=getTitle(event.get('summary')) + " dans plus d'un jour"))
         else:
@@ -65,21 +68,38 @@ def download_ical():
         r = requests.get(CalUrl, allow_redirects=True)
         open('calendar.ics', 'wb').write(r.content)
     except:
-        print("Error downloading calendar")
+        stderr("Error downloading calendar")
         sys.exit(1)
 
 def parse_ical():
     try:
         cal = icalendar.Calendar.from_ical(open('calendar.ics', 'rb').read())
+        return cal
     except:
-        print("Error parsing calendar")
+        stderr("Error parsing calendar")
         sys.exit(1)
-    return cal
 
 def getNextEvent(cal):
+    nextEventDate=datetime.datetime.now(pytz.timezone(Timezone))+datetime.timedelta(days=365)
     for event in cal.walk('vevent'):
-        if event.get('dtstart').dt > datetime.datetime.now(pytz.timezone(Timezone)):
-            return event
+        # stderr(event.get('summary')+ " : " + str(getEventDate(event).strftime("%d/%m/%Y %H:%M:%S")))
+        eventdate = getEventDate(event)
+        if eventdate > datetime.datetime.now(pytz.timezone(Timezone)) and eventdate < nextEventDate:
+            nextEventDate=eventdate
+            nextEvent=event
+    return nextEvent
+
+def stderr(message):
+    sys.stderr.write(message)
+
+def getEventDate(event):
+    return event.get('dtstart').dt
+
+def getAllEvents(cal):
+    events = []
+    for event in cal.walk('vevent'):
+        events.append(event)
+    return events[0]
 
 def CalcTimeLeft(event):
     timeleft = event.get('dtstart').dt - datetime.datetime.now(pytz.timezone(Timezone))
@@ -88,10 +108,13 @@ def CalcTimeLeft(event):
     return timeleft
 
 def delete_ical():
-    os.remove("calendar.ics")
+    try:
+        os.remove("calendar.ics")
+    except:
+        stderr("Error deleting calendar")
 
 def getMinutes(timeleft):
-    return timeleft.seconds // 60
+    return timeleft.seconds // 60 - getHours(timeleft) * 60
 
 def getHours(timeleft):
     return timeleft.seconds // 3600
@@ -100,7 +123,9 @@ def getTitle(event):
     return event.split(" - ")[0]
 
 def isMoreThanDay(timeleft):
-    return timeleft.days > 0 or getHours(timeleft) > 24 or getHours(timeleft) > 5
+    return getHours(timeleft) > 24
 
 if __name__ == "__main__":
+    delete_ical()
+    download_ical()
     client.run(BotToken)
