@@ -35,6 +35,8 @@ async def on_message(message):
         timeleft = CalcTimeLeft(event)
         if isMoreThanDay(timeleft):
             await message.channel.send("Prochain cours dans plus d'un jour : " + getTitle(event.get('summary')))
+        elif InEvent(cal):
+            await message.channel.send("En cours de " + getTitle(event.get('summary')))
         else:
             await message.channel.send("Le prochain évenement est " + event.get('summary') + " dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m")
 
@@ -63,6 +65,8 @@ async def my_background_task():
         stderr("Reload status")
         if isMoreThanDay(timeleft):
             await client.change_presence(activity=discord.Game(name=getTitle(event.get('summary')) + " dans plus d'un jour"))
+        elif InEvent(cal):
+            await client.change_presence(activity=discord.Game(name="En cours de " + getTitle(event.get('summary'))))
         else:
             await client.change_presence(activity=discord.Game(name=getTitle(event.get('summary')) + " dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m"))
         await asyncio.sleep(60)
@@ -88,7 +92,6 @@ def parse_ical():
 def getNextEvent(cal):
     nextEventDate=datetime.datetime.now(pytz.timezone(Timezone))+datetime.timedelta(days=365)
     for event in cal.walk('vevent'):
-        # stderr(event.get('summary')+ " : " + str(getEventDate(event).strftime("%d/%m/%Y %H:%M:%S")))
         eventdate = getEventDate(event)
         if eventdate > datetime.datetime.now(pytz.timezone(Timezone)) and eventdate < nextEventDate:
             nextEventDate=eventdate
@@ -130,6 +133,12 @@ def getTitle(event):
 
 def isMoreThanDay(timeleft):
     return getHours(timeleft) > 24
+
+def InEvent(cal):
+    for event in cal.walk('vevent'):
+        if getEventDate(event) < datetime.datetime.now(pytz.timezone(Timezone)) and getEventDate(event) + datetime.timedelta(minutes=30) > datetime.datetime.now(pytz.timezone(Timezone)):
+            return True
+    return False
 
 if __name__ == "__main__":
     delete_ical()
