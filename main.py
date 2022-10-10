@@ -1,3 +1,14 @@
+# ===========================================================================================================================================================
+# Config part
+CalUrl=""
+BotToken=""
+Timezone="Europe/Paris"
+AdminId=""
+# End of config part
+# ===========================================================================================================================================================
+
+# Code by Wiibleyde
+
 import discord 
 import os
 import requests
@@ -6,11 +17,6 @@ import datetime
 import pytz
 import sys
 import asyncio
-
-CalUrl=""
-BotToken=""
-Timezone="Europe/Paris"
-AdminId=""
 
 client = discord.Client()
 
