@@ -20,6 +20,8 @@ import asyncio
 
 client = discord.Client()
 
+client = discord.Client()
+
 @client.event
 async def on_ready():
     stderr("We have logged in as {0.user}".format(client))
@@ -34,9 +36,7 @@ async def on_message(message):
         event = getNextEvent(cal)
         timeleft = CalcTimeLeft(event)
         if isMoreThanDay(timeleft):
-            await message.channel.send("Prochain cours dans plus d'un jour : " + getTitle(event.get('summary')))
-        elif InEvent(cal):
-            await message.channel.send("En cours de " + getTitle(event.get('summary')))
+            await message.channel.send("Prochain cours de : " + event.get('summary') + " dans plus d'un jour")
         else:
             await message.channel.send("Le prochain évenement est " + event.get('summary') + " dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m")
 
@@ -65,8 +65,6 @@ async def my_background_task():
         stderr("Reload status")
         if isMoreThanDay(timeleft):
             await client.change_presence(activity=discord.Game(name=getTitle(event.get('summary')) + " dans plus d'un jour"))
-        elif InEvent(cal):
-            await client.change_presence(activity=discord.Game(name="En cours de " + getTitle(event.get('summary'))))
         else:
             await client.change_presence(activity=discord.Game(name=getTitle(event.get('summary')) + " dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m"))
         await asyncio.sleep(60)
@@ -99,7 +97,7 @@ def getNextEvent(cal):
     return nextEvent
 
 def stderr(message):
-    sys.stderr.write(message)
+    print(message)
 
 def getEventDate(event):
     return event.get('dtstart').dt
@@ -132,7 +130,7 @@ def getTitle(event):
     return event.split(" - ")[0]
 
 def isMoreThanDay(timeleft):
-    return getHours(timeleft) > 24
+    return timeleft.days > 0
 
 def InEvent(cal):
     for event in cal.walk('vevent'):
