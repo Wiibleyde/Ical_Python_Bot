@@ -26,7 +26,8 @@ The bot won't print anything in the console, but you can see the logs in the std
 
 ## Commands
 The bot has 2 commands :  
-`$next` : This command will print the next event of the calendar.  
+`$next` : This command will print the next event of the calendar. 
+`$week` : This command will print the next days with events in the calendar.
 `$help` : This command will print the help message.
 
 ## License
