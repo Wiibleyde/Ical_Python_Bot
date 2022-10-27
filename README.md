@@ -22,7 +22,10 @@ On Windows :
 python main.py
 ```
 
-The bot won't print anything in the console, but you can see the logs in the stderr.
+On Linux : 
+```
+python3 main.py
+```
 
 ## Commands
 The bot has 2 commands :  
