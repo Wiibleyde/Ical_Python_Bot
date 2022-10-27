@@ -38,7 +38,6 @@ async def on_message(message):
             embed.add_field(name="Dans", value=str(timeleft.days) + " jours", inline=False)
             await message.channel.send(embed=embed)
         else:
-            # add 2 hours to timeleft
             eventdate = getEventDate(event) + datetime.timedelta(hours=2)
             eventdate = eventdate.strftime("%d/%m %H:%M")
             embed.add_field(name="Dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m", value=eventdate, inline=False)
@@ -113,59 +112,159 @@ def getEventDate(event):
     return event.get('dtstart').dt
 
 def getNextEvent(cal):
+    """Return the next event in the calendar
+
+    Args:
+        cal (icalendar.Calendar): The calendar
+
+    Returns:
+        icalendar.Event: The next event
+    """
     events = getAllEvents(cal)
-    for event in events:
-        if getEventDate(event) > datetime.datetime.now(pytz.timezone(Timezone)) and not isMoreThanDay(CalcTimeLeft(event)):
+    sorted_events = sorted(events, key=lambda event: getEventDate(event))
+    now=datetime.datetime.now(pytz.timezone(Timezone))
+    for event in sorted_events:
+        if getEventDate(event) > now:
+            if getTitle(event.get('summary')) == "Férié":
+                continue
             return event
 
 def stderr(message):
+    """Print a message to stderr
+    
+    Args:
+        message (string): The message to print
+
+    Returns:
+        None
+    """
     print(message)
 
 def getAllEvents(cal):
+    """Return all events in the calendar
+
+    Args:
+        cal (icalendar.Calendar): The calendar
+
+    Returns:
+        list: List of icalendar.Event
+    """
     events = []
     for event in cal.walk('vevent'):
         events.append(event)
     return events
 
 def CalcTimeLeft(event):
-    timeleft = event.get('dtstart').dt - datetime.datetime.now(pytz.timezone(Timezone))
+    """Return the time left before the event
+
+    Args:
+        event (icalendar.Event): The event
+
+    Returns:
+        datetime.timedelta: The time left
+    """
+    timeleft=getEventDate(event)-datetime.datetime.now(pytz.timezone(Timezone))
     if getHours(timeleft) < 0:
         return 0
     return timeleft
 
 def delete_ical():
+    """Delete the calendar file
+
+    Returns:
+        None
+    """
     try:
         os.remove("calendar.ics")
     except:
         stderr("Error deleting calendar")
 
 def getMinutes(timeleft):
+    """Return the minutes left before the event
+    
+    Args:
+        timeleft (datetime.timedelta): The time left
+
+    Returns:
+        int: The minutes left
+    """
     return timeleft.seconds // 60 - getHours(timeleft) * 60
 
 def getHours(timeleft):
+    """Return the hours left before the event
+
+    Args:
+        timeleft (datetime.timedelta): The time left
+
+    Returns:
+        int: The hours left
+    """
     return timeleft.seconds // 3600
 
 def getTitle(event):
+    """Return the title of the event
+
+    Args:
+        event (string): The event
+
+    Returns:
+        string: The title
+    """
     return event.split(" - ")[0]
 
 def isMoreThanDay(timeleft):
+    """Return if the time left is more than a day
+
+    Args:
+        timeleft (datetime.timedelta): The time left
+
+    Returns:
+        bool: True if more than a day, False otherwise
+    """
     return timeleft.days > 0
 
 def InEvent(cal):
+    """Return if the bot is in an event
+
+    Args:
+        cal (icalendar.Calendar): The calendar
+
+    Returns:
+        bool: True if in an event, False otherwise
+    """
     for event in cal.walk('vevent'):
         if getEventDate(event) < datetime.datetime.now(pytz.timezone(Timezone)) and getEventDate(event) + datetime.timedelta(minutes=30) > datetime.datetime.now(pytz.timezone(Timezone)):
             return True
     return False
 
 def getEventsWeek(cal):
+    """Return the events of the week
+
+    Args:
+        cal (icalendar.Calendar): The calendar
+
+    Returns:
+        list: List of icalendar.Event
+    """
     events = []
     sorted_events = sortEvents(cal)
     for event in sorted_events:
+        print(getTitle(event.get('summary')))
         if getEventDate(event) > datetime.datetime.now(pytz.timezone(Timezone)) and getEventDate(event) < datetime.datetime.now(pytz.timezone(Timezone)) + datetime.timedelta(days=7):
+            if getTitle(event.get('summary')) == "Férié":
+                continue
             events.append(event)
     return events
 
 def sortEvents(cal):
+    """Return the events sorted by date
+
+    Args:
+        cal (icalendar.Calendar): The calendar
+
+    Returns:
+        list: List of icalendar.Event
+    """    
     events = []
     for event in cal.walk('vevent'):
         events.append(event)
