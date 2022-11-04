@@ -62,7 +62,7 @@ async def on_message(message):
             if eventdate.strftime("%H:%M") == "00:00":
                 eventdate = eventdate.strftime("%d/%m")
             else:
-                eventdate = eventdate.strftime("%d/%m %H:%M")
+                eventdate = (eventdate + datetime.timedelta(hours=-1)).strftime("%d/%m %H:%M")
             embed.add_field(name=getTitle(event.get('summary')), value=eventdate, inline=False)
         await message.channel.send(embed=embed)
 
