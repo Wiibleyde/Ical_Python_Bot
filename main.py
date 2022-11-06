@@ -109,7 +109,7 @@ def parse_ical():
 def getEventDate(event):
     if type(event.get('dtstart').dt) is datetime.date:
         return datetime.datetime.combine(event.get('dtstart').dt, datetime.time(0, 0, 0), tzinfo=pytz.timezone(Timezone))
-    return event.get('dtstart').dt
+    return event.get('dtstart').dt + datetime.timedelta(hours=-1)
 
 def getNextEvent(cal):
     """Return the next event in the calendar
@@ -166,7 +166,7 @@ def CalcTimeLeft(event):
     timeleft=getEventDate(event)-datetime.datetime.now(pytz.timezone(Timezone))
     if getHours(timeleft) < 0:
         return 0
-    return timeleft
+    return timeleft + datetime.timedelta(hours=2)
 
 def delete_ical():
     """Delete the calendar file
