@@ -38,13 +38,16 @@ async def on_message(message):
             embed.add_field(name="Dans", value=str(timeleft.days) + " jours", inline=False)
             await message.channel.send(embed=embed)
         else:
-            eventdate = getEventDate(event) + datetime.timedelta(hours=2)
-            eventdate = eventdate.strftime("%d/%m %H:%M")
+            eventdate = getEventDate(event)
+            eventdate = (eventdate + datetime.timedelta(hours=1)).strftime("%d/%m %H:%M")
             embed.add_field(name="Dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m", value=eventdate, inline=False)
             await message.channel.send(embed=embed)
 
     if message.content.startswith('$help'):
-        embed = discord.Embed(title="Help", description="Liste des commandes" + "\n- $next : Get next event in the given calendar" + "\n- $week : Get event of the current week in the given calendar", color=0xeee657)
+        embed = discord.Embed(title="Commandes", description="Liste des commandes", color=0x00ff00)
+        embed.add_field(name="$next", value="Affiche le prochain cours", inline=False)
+        embed.add_field(name="$week", value="Affiche les cours des 7 prochains jours", inline=False)
+        embed.add_field(name="$help", value="Affiche cette aide", inline=False)
         await message.channel.send(embed=embed)
 
     if message.content.startswith('$update') and message.author.id == AdminId:
@@ -58,11 +61,11 @@ async def on_message(message):
         embed = discord.Embed(title="Cours de la semaine", description="Liste des cours de la semaine", color=0x00ff00)
         for event in WeekEvents:
             timeleft = CalcTimeLeft(event)
-            eventdate = getEventDate(event) + datetime.timedelta(hours=2)
+            eventdate = getEventDate(event)
             if eventdate.strftime("%H:%M") == "00:00":
                 eventdate = eventdate.strftime("%d/%m")
             else:
-                eventdate = (eventdate + datetime.timedelta(hours=-1)).strftime("%d/%m %H:%M")
+                eventdate = (eventdate + datetime.timedelta(hours=1)).strftime("%d/%m %H:%M")
             embed.add_field(name=getTitle(event.get('summary')), value=eventdate, inline=False)
         await message.channel.send(embed=embed)
 
@@ -109,7 +112,7 @@ def parse_ical():
 def getEventDate(event):
     if type(event.get('dtstart').dt) is datetime.date:
         return datetime.datetime.combine(event.get('dtstart').dt, datetime.time(0, 0, 0), tzinfo=pytz.timezone(Timezone))
-    return event.get('dtstart').dt + datetime.timedelta(hours=-1)
+    return event.get('dtstart').dt
 
 def getNextEvent(cal):
     """Return the next event in the calendar
@@ -166,7 +169,7 @@ def CalcTimeLeft(event):
     timeleft=getEventDate(event)-datetime.datetime.now(pytz.timezone(Timezone))
     if getHours(timeleft) < 0:
         return 0
-    return timeleft + datetime.timedelta(hours=2)
+    return timeleft
 
 def delete_ical():
     """Delete the calendar file
@@ -249,7 +252,6 @@ def getEventsWeek(cal):
     events = []
     sorted_events = sortEvents(cal)
     for event in sorted_events:
-        print(getTitle(event.get('summary')))
         if getEventDate(event) > datetime.datetime.now(pytz.timezone(Timezone)) and getEventDate(event) < datetime.datetime.now(pytz.timezone(Timezone)) + datetime.timedelta(days=7):
             if getTitle(event.get('summary')) == "Férié":
                 continue
