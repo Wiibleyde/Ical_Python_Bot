@@ -2,8 +2,8 @@
 # Config part
 CalUrl=""
 BotToken=""
-Timezone="Europe/Paris"
-AdminId=""
+Timezone=""
+AdminName=""
 # End of config part
 # ===========================================================================================================================================================
 
@@ -17,12 +17,65 @@ import datetime
 import pytz
 import sys
 import asyncio
+import sqlite3
+import time
 
-client = discord.Client()
+client = discord.Client(intents=discord.Intents.all())
+
+class Database():
+    def __init__(self,fileName):
+        self.fileName = fileName
+
+    def CreateDB(self):
+        conn = sqlite3.connect(self.fileName)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS logs
+                        (date text, time text, user text, cmd text)''')
+        conn.commit()
+        conn.close()
+
+    def AddLog(self,user,cmd):
+        conn = sqlite3.connect(self.fileName)
+        c = conn.cursor()
+        c.execute("INSERT INTO logs VALUES (?,?,?,?)", (time.strftime("%d/%m/%Y"), time.strftime("%H:%M:%S"), user, cmd))
+        conn.commit()
+        conn.close()
+
+    def GetNbCmdUsed(self):
+        conn = sqlite3.connect(self.fileName)
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM logs")
+        result = c.fetchone()
+        conn.close()
+        return result[0]
+
+    def GetNbCmdUsedByUser(self,user):
+        conn = sqlite3.connect(self.fileName)
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM logs WHERE user=?", (user,))
+        result = c.fetchone()
+        conn.close()
+        return result[0]
+
+    def GetNbCmdUsedByCmd(self,cmd):
+        conn = sqlite3.connect(self.fileName)
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM logs WHERE cmd=?", (cmd,))
+        result = c.fetchone()
+        conn.close()
+        return result[0]
+
+    def GetNbCmdUsedByUserAndCmd(self,user,cmd):
+        conn = sqlite3.connect(self.fileName)
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM logs WHERE user=? AND cmd=?", (user,cmd))
+        result = c.fetchone()
+        conn.close()
+        return result[0]
 
 @client.event
 async def on_ready():
-    stderr("We have logged in as {0.user}".format(client))
+    showerfunc("We have logged in as {0.user}".format(client))
 
 @client.event
 async def on_message(message):
@@ -30,6 +83,7 @@ async def on_message(message):
         return
 
     if message.content.startswith('$next'):
+        LogsObj.AddLog(message.author.name,"$next")
         cal = parse_ical()
         event = getNextEvent(cal)
         timeleft = CalcTimeLeft(event)
@@ -43,19 +97,14 @@ async def on_message(message):
             embed.add_field(name="Dans " + str(getHours(timeleft)) + "h" + str(getMinutes(timeleft)) + "m", value=eventdate, inline=False)
             await message.channel.send(embed=embed)
 
-    if message.content.startswith('$help'):
-        embed = discord.Embed(title="Commandes", description="Liste des commandes", color=0x00ff00)
-        embed.add_field(name="$next", value="Affiche le prochain cours", inline=False)
-        embed.add_field(name="$week", value="Affiche les cours des 7 prochains jours", inline=False)
-        embed.add_field(name="$help", value="Affiche cette aide", inline=False)
-        await message.channel.send(embed=embed)
-
-    if message.content.startswith('$update') and message.author.id == AdminId:
+    if message.content.startswith('$update') and message.author.name == AdminName:
+        LogsObj.AddLog(message.author.name,"$update")
         delete_ical()
         download_ical()
         await message.channel.send("Calendar updated")
     
     if message.content.startswith('$week'):
+        LogsObj.AddLog(message.author.name,"$week")
         cal = parse_ical()
         WeekEvents = getEventsWeek(cal)
         embed = discord.Embed(title="Cours de la semaine", description="Liste des cours de la semaine", color=0x00ff00)
@@ -69,6 +118,55 @@ async def on_message(message):
             embed.add_field(name=getTitle(event.get('summary')), value=eventdate, inline=False)
         await message.channel.send(embed=embed)
 
+    if message.content.startswith('$wiibleyde'):
+        LogsObj.AddLog(message.author.name,"$wiibleyde")
+        await message.channel.send("https://media.discordapp.net/attachments/940562878971400193/1016713259971268659/CAT_DANCE.gif")
+
+    if message.content.startswith('$stats'):
+        LogsObj.AddLog(message.author.name,"$stats")
+        embed = discord.Embed(title="Stats", description="Statistiques", color=0x00ff00)
+        embed.add_field(name="Nombre de commandes", value=str(LogsObj.GetNbCmdUsed()), inline=False)
+        embed.add_field(name="Nombre de commandes par " + message.author.name, value=str(LogsObj.GetNbCmdUsedByUser(message.author.name)), inline=False)
+        await message.channel.send(embed=embed)
+        
+    if message.content.startswith('$cmdstats') and message.author.name == AdminName:
+        LogsObj.AddLog(message.author.name,"$cmdstats")
+        embed = discord.Embed(title="Stats", description="Statistiques", color=0x00ff00)
+        embed.add_field(name="Nombre de commandes $next", value=str(LogsObj.GetNbCmdUsedByCmd("$next")), inline=False)
+        embed.add_field(name="Nombre de commandes $week", value=str(LogsObj.GetNbCmdUsedByCmd("$week")), inline=False)
+        embed.add_field(name="Nombre de commandes $help", value=str(LogsObj.GetNbCmdUsedByCmd("$help")), inline=False)
+        embed.add_field(name="Nombre de commandes $update", value=str(LogsObj.GetNbCmdUsedByCmd("$update")), inline=False)
+        embed.add_field(name="Nombre de commandes $stats", value=str(LogsObj.GetNbCmdUsedByCmd("$stats")), inline=False)
+        embed.add_field(name="Nombre de commandes $statscmd", value=str(LogsObj.GetNbCmdUsedByCmd("$statscmd")), inline=False)
+        embed.add_field(name="Nombre de commandes $wiibleyde", value=str(LogsObj.GetNbCmdUsedByCmd("$wiibleyde")), inline=False)
+        await message.channel.send(embed=embed)
+
+    if message.content.startswith('$cmdstatsbyuser') and message.author.name == AdminName:
+        LogsObj.AddLog(message.author.name,"$cmdstatsbyuser")
+        user=message.content.split(" ")[1]
+        embed = discord.Embed(title="Stats", description="Statistiques", color=0x00ff00)
+        embed.add_field(name="Nombre de commandes $next par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$next",user)), inline=False)
+        embed.add_field(name="Nombre de commandes $week par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$week",user)), inline=False)
+        embed.add_field(name="Nombre de commandes $help par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$help",user)), inline=False)
+        embed.add_field(name="Nombre de commandes $update par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$update",user)), inline=False)
+        embed.add_field(name="Nombre de commandes $stats par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$stats",user)), inline=False)
+        embed.add_field(name="Nombre de commandes $statscmd par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$statscmd",user)), inline=False)
+        embed.add_field(name="Nombre de commandes $wiibleyde par " + user, value=str(LogsObj.GetNbCmdUsedByCmdByUser("$wiibleyde",user)), inline=False)
+        await message.channel.send(embed=embed)
+
+    if message.content.startswith('$help'):
+        LogsObj.AddLog(message.author.name,"$help")
+        embed = discord.Embed(title="Commandes", description="Liste des commandes", color=0x00ff00)
+        if message.author.name == AdminName:
+            embed.add_field(name="$update", value="Mise à jour des données **(admin only)**", inline=False)
+            embed.add_field(name="$statscmd", value="Statistiques des commandes **(admin only)**", inline=False)
+            embed.add_field(name="$statscmdbyuser", value="Statistiques des commandes par utilisateur **(admin only)**", inline=False)
+        embed.add_field(name="$next", value="Prochain évènement", inline=False)
+        embed.add_field(name="$week", value="Evènements de la semaine", inline=False)
+        embed.add_field(name="$wiibleyde", value="Wiibleyde", inline=False)
+        embed.add_field(name="$stats", value="Statistiques", inline=False)
+        await message.channel.send(embed=embed)
+
 async def my_background_task():
     await client.wait_until_ready()
     count=0
@@ -79,12 +177,12 @@ async def my_background_task():
             count=0
         else:
             count=count+1
-            stderr("Waiting " + str(30-count) + " minutes")
+            showerfunc("Waiting " + str(30-count) + " minutes")
         cal=parse_ical()
         event=getNextEvent(cal)
         timeleft=CalcTimeLeft(event)
-        stderr("Next event in : " + str(timeleft) + " : " + event.get('summary') + " : " + getEventDate(event).strftime("%d/%m/%Y %H:%M:%S"))
-        stderr("Reload status")
+        # showerfunc("Next event in : " + str(timeleft) + " : " + event.get('summary') + " : " + getEventDate(event).strftime("%d/%m/%Y %H:%M:%S"))
+        # showerfunc("Reload status")
         if isMoreThanDay(timeleft):
             await client.change_presence(activity=discord.Game(name=getTitle(event.get('summary')) + " dans plus d'un jour"))
         else:
@@ -97,8 +195,9 @@ def download_ical():
     try:
         r = requests.get(CalUrl, allow_redirects=True)
         open('calendar.ics', 'wb').write(r.content)
+        showerfunc("Calendar downloaded")
     except:
-        stderr("Error downloading calendar")
+        showerfunc("Error downloading calendar")
         sys.exit(1)
 
 def parse_ical():
@@ -106,7 +205,7 @@ def parse_ical():
         cal = icalendar.Calendar.from_ical(open('calendar.ics', 'rb').read())
         return cal
     except:
-        stderr("Error parsing calendar")
+        showerfunc("Error parsing calendar")
         sys.exit(1)
 
 def getEventDate(event):
@@ -132,8 +231,8 @@ def getNextEvent(cal):
                 continue
             return event
 
-def stderr(message):
-    """Print a message to stderr
+def showerfunc(message):
+    """Print a message to showerfunc
     
     Args:
         message (string): The message to print
@@ -179,8 +278,9 @@ def delete_ical():
     """
     try:
         os.remove("calendar.ics")
+        showerfunc("Calendar deleted")
     except:
-        stderr("Error deleting calendar")
+        showerfunc("Error deleting calendar")
 
 def getMinutes(timeleft):
     """Return the minutes left before the event
@@ -273,6 +373,8 @@ def sortEvents(cal):
     return sorted(events, key=lambda event: getEventDate(event))
 
 if __name__ == "__main__":
+    LogsObj=Database("logs.db")
+    LogsObj.CreateDB()
     delete_ical()
     download_ical()
     client.run(BotToken)
