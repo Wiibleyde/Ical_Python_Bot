@@ -32,6 +32,7 @@ The bot has 2 commands :
 `$next` : This command will print the next event of the calendar. 
 `$week` : This command will print the next days with events in the calendar.
 `$help` : This command will print the help message.
+And more for the admin commands.
 
 ## License
 You can use this code for your own project, but you have to credit me as the author of the code *(Wiibleyde)*.
